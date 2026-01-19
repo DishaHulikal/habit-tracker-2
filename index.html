@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Habit Tracker</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+</head>
+<body style="background: #c9bdb4; margin: 0; padding: 0; overflow: hidden;">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    function HabitTracker() {
+      const [habits, setHabits] = useState([]);
+      const [completions, setCompletions] = useState({});
+      const [showAdd, setShowAdd] = useState(false);
+      const [editingId, setEditingId] = useState(null);
+      const listRef = useRef(null);
+
+      const toDateKey = (date) => {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      };
+
+      const weekDates = (() => {
+        const now = new Date();
+        const day = now.getDay(); 
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+        const monday = new Date(now.getFullYear(), now.getMonth(), diff);
+        return Array.from({length: 7}, (_, i) => {
+          const d = new Date(monday);
+          d.setDate(monday.getDate() + i);
+          return d;
+        });
+      })();
+
+      useEffect(() => {
+        const stored = localStorage.getItem('habitData');
+        if (stored) {
+          const data = JSON.parse(stored);
+          setCompletions(data.completions || {});
+          if (data.habits) setHabits(data.habits);
+        }
+      }, []);
+
+      useEffect(() => {
+        localStorage.setItem('habitData', JSON.stringify({ completions, habits }));
+      }, [completions, habits]);
+
+      useEffect(() => {
+        if (listRef.current && habits.length > 0) {
+          Sortable.create(listRef.current, {
+            animation: 150,
+            onEnd: (evt) => {
+              const newHabits = [...habits];
+              const [movedItem] = newHabits.splice(evt.oldIndex, 1);
+              newHabits.splice(evt.newIndex, 0, movedItem);
+              setHabits(newHabits);
+            },
+          });
+        }
+      }, [habits]);
+
+      const getStreak = (habitId) => {
+        let count = 0;
+        let d = new Date();
+        const todayKey = toDateKey(d);
+        if (!completions[`${habitId}-${todayKey}`]) d.setDate(d.getDate() - 1);
+        while (completions[`${habitId}-${toDateKey(d)}`]) {
+          count++;
+          d.setDate(d.getDate() - 1);
+          if (count > 365) break;
+        }
+        return count;
+      };
+
+      const toggle = (id, date) => {
+        const key = `${id}-${toDateKey(date)}`;
+        const newComps = { ...completions };
+        if (newComps[key]) {
+          delete newComps[key];
+        } else {
+          newComps[key] = true;
+          confetti({ particleCount: 30, spread: 40, origin: { y: 0.8 } });
+        }
+        setCompletions(newComps);
+      };
+
+      const deleteHabit = (id) => {
+        if(window.confirm('Delete?')) {
+          setHabits(habits.filter(h => h.id !== id));
+        }
+      };
+
+      return (
+        <div className="w-full p-2 antialiased select-none font-sans flex flex-col h-screen">
+          <div className="flex justify-between items-center mb-1.5 px-1">
+            <span className="text-base text-[#7d8ba8]">𝓗𝓪𝓫𝓲𝓽 𝓣𝓻𝓪𝓬𝓴𝓮𝓻 ⋆˚࿔</span>
+            <button onMouseDown={() => setShowAdd(!showAdd)} className="text-[#7d8ba8] hover:text-white transition-colors">
+              <span className="text-sm">{showAdd ? '✕' : '＋'}</span>
+            </button>
+          </div>
+          
+          <div ref={listRef} className="space-y-1 overflow-y-auto flex-grow pr-1">
+            {habits.map(habit => {
+              const streak = getStreak(habit.id);
+              const isEditing = editingId === habit.id;
+
+              return (
+                <div key={habit.id} className="bg-[#e8e2dd]/90 p-1.5 rounded-md shadow-sm border border-transparent">
+                  <div className="flex justify-between items-center mb-1 text-[10px]">
+                    <div className="flex items-center gap-1 font-bold flex-1 truncate pr-2">
+                      <button 
+                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); deleteHabit(habit.id); }} 
+                        className="text-[8px] text-[#b8ada3] hover:text-red-400 pr-1 flex-shrink-0"
+                      >
+                        ✕
+                      </button>
+                      {isEditing ? (
+                        <input className="flex-1 bg-white rounded px-1 outline-none font-bold text-[#4a4a4a]" 
+                          value={habit.name} 
+                          onChange={(e) => setHabits(habits.map(h => h.id === habit.id ? {...h, name: e.target.value} : h))} 
+                          onBlur={() => setEditingId(null)} 
+                          onKeyDown={(e) => e.key === 'Enter' && setEditingId(null)} 
+                          autoFocus />
+                      ) : (
+                        <span className="truncate cursor-pointer text-[#4a4a4a] flex-1" onClick={() => setEditingId(habit.id)}>
+                          {habit.emoji} {habit.name}
+                        </span>
+                      )}
+                    </div>
+                    <div className="font-bold text-orange-600 flex items-center gap-0.5">{streak}🔥</div>
+                  </div>
+                  <div className="flex gap-0.5">
+                    {['M','T','W','T','F','S','S'].map((day, i) => {
+                      const dKey = toDateKey(weekDates[i]);
+                      const isChecked = completions[`${habit.id}-${dKey}`];
+                      return (
+                        <button key={i} onClick={() => toggle(habit.id, weekDates[i])} 
+                          className={`flex-1 py-1 rounded-sm text-[9px] font-bold border transition-all ${isChecked ? 'bg-[#5e7ce2] border-[#5e7ce2] text-white' : 'bg-white border-[#b8ada3] text-[#8b7d73]'}`}>
+                          {day}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {showAdd && (
+            <input autoFocus type="text" placeholder="Add habit..." className="mt-1.5 w-full text-[10px] p-1 rounded border border-[#b8ada3] bg-white outline-none shadow-inner" onKeyDown={(e) => {
+              if(e.key === 'Enter' && e.target.value) {
+                setHabits([...habits, {id: Date.now(), name: e.target.value, emoji: '✨'}]);
+                e.target.value = '';
+                setShowAdd(false);
+              }
+            }} />
+          )}
+        </div>
+      );
+    }
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<HabitTracker />);
+  </script>
+</body>
+</html>
