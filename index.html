@@ -94,19 +94,37 @@
         setCompletions(newComps);
       };
 
-      const deleteHabit = (id) => {
-        if(window.confirm('Delete?')) {
-          setHabits(habits.filter(h => h.id !== id));
-        }
+      const downloadBackup = () => {
+        const data = JSON.stringify({ completions, habits });
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `habit_backup_${new Date().toISOString().split('T')[0]}.json`;
+        link.click();
+      };
+
+      const handleRestore = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const saved = JSON.parse(event.target.result);
+            setHabits(saved.habits || []);
+            setCompletions(saved.completions || {});
+            alert("Streak Restored! 🔥");
+          } catch (err) {
+            alert("Error reading file.");
+          }
+        };
+        reader.readAsText(file);
       };
 
       return (
         <div className="w-full p-2 antialiased select-none font-sans flex flex-col h-screen">
-          <div className="flex justify-between items-center mb-1.5 px-1">
+          <div className="flex justify-center items-center mb-1.5 px-1">
             <span className="text-base text-[#7d8ba8]">𝓗𝓪𝓫𝓲𝓽 𝓣𝓻𝓪𝓬𝓴𝓮𝓻 ⋆˚࿔</span>
-            <button onMouseDown={() => setShowAdd(!showAdd)} className="text-[#7d8ba8] hover:text-white transition-colors">
-              <span className="text-sm">{showAdd ? '✕' : '＋'}</span>
-            </button>
           </div>
           
           <div ref={listRef} className="space-y-1 overflow-y-auto flex-grow pr-1">
@@ -119,7 +137,7 @@
                   <div className="flex justify-between items-center mb-1 text-[10px]">
                     <div className="flex items-center gap-1 font-bold flex-1 truncate pr-2">
                       <button 
-                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); deleteHabit(habit.id); }} 
+                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); if(confirm('Delete?')) setHabits(habits.filter(h => h.id !== habit.id)); }} 
                         className="text-[8px] text-[#b8ada3] hover:text-red-400 pr-1 flex-shrink-0"
                       >
                         ✕
@@ -165,6 +183,20 @@
               }
             }} />
           )}
+
+          <div className="mt-auto pt-2 pb-2 flex justify-between items-center px-4 border-t border-[#b8ada3]/30 bg-[#c9bdb4]">
+            <button onMouseDown={() => setShowAdd(!showAdd)} className="text-[#7d8ba8] hover:text-white transition-colors text-sm font-bold">
+              {showAdd ? '✕' : '＋'}
+            </button>
+            <div className="flex gap-4">
+              <button onMouseDown={downloadBackup} className="text-[#7d8ba8] hover:text-blue-500 transition-colors text-sm">
+                💾
+              </button>
+              <label className="cursor-pointer text-[#7d8ba8] hover:text-green-600 transition-colors text-sm">
+                📥 <input type="file" className="hidden" onChange={handleRestore} />
+              </label>
+            </div>
+          </div>
         </div>
       );
     }
