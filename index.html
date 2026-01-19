@@ -21,6 +21,7 @@
       const [completions, setCompletions] = useState({});
       const [showAdd, setShowAdd] = useState(false);
       const [editingId, setEditingId] = useState(null);
+      const [deleteConfirm, setDeleteConfirm] = useState(null);
       const listRef = useRef(null);
 
       const toDateKey = (date) => {
@@ -113,12 +114,19 @@
             const saved = JSON.parse(event.target.result);
             setHabits(saved.habits || []);
             setCompletions(saved.completions || {});
-            alert("Streak Restored! 🔥");
-          } catch (err) {
-            alert("Error reading file.");
-          }
+          } catch (err) { console.error("Restore failed"); }
         };
         reader.readAsText(file);
+      };
+
+      const attemptDelete = (id) => {
+        if (deleteConfirm === id) {
+          setHabits(habits.filter(h => h.id !== id));
+          setDeleteConfirm(null);
+        } else {
+          setDeleteConfirm(id);
+          setTimeout(() => setDeleteConfirm(null), 3000);
+        }
       };
 
       return (
@@ -130,19 +138,13 @@
           <div ref={listRef} className="space-y-1 overflow-y-auto flex-grow pr-1">
             {habits.map(habit => {
               const streak = getStreak(habit.id);
-              const isEditing = editingId === habit.id;
+              const isConfirming = deleteConfirm === habit.id;
 
               return (
-                <div key={habit.id} className="bg-[#e8e2dd]/90 p-1.5 rounded-md shadow-sm border border-transparent">
+                <div key={habit.id} className="bg-[#e8e2dd]/90 p-1.5 rounded-md shadow-sm">
                   <div className="flex justify-between items-center mb-1 text-[10px]">
                     <div className="flex items-center gap-1 font-bold flex-1 truncate pr-2">
-                      <button 
-                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); if(confirm('Delete?')) setHabits(habits.filter(h => h.id !== habit.id)); }} 
-                        className="text-[8px] text-[#b8ada3] hover:text-red-400 pr-1 flex-shrink-0"
-                      >
-                        ✕
-                      </button>
-                      {isEditing ? (
+                      {editingId === habit.id ? (
                         <input className="flex-1 bg-white rounded px-1 outline-none font-bold text-[#4a4a4a]" 
                           value={habit.name} 
                           onChange={(e) => setHabits(habits.map(h => h.id === habit.id ? {...h, name: e.target.value} : h))} 
@@ -151,11 +153,20 @@
                           autoFocus />
                       ) : (
                         <span className="truncate cursor-pointer text-[#4a4a4a] flex-1" onClick={() => setEditingId(habit.id)}>
-                          {habit.emoji} {habit.name}
+                          {habit.emoji || '✨'} {habit.name}
                         </span>
                       )}
                     </div>
-                    <div className="font-bold text-orange-600 flex items-center gap-0.5">{streak}🔥</div>
+                    
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="font-bold text-orange-600">{streak}🔥</div>
+                      <button 
+                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); attemptDelete(habit.id); }} 
+                        className={`text-[10px] px-1.5 rounded font-bold transition-all ${isConfirming ? 'bg-red-500 text-white' : 'text-[#b8ada3] hover:text-red-500'}`}
+                      >
+                        {isConfirming ? '!!' : '✕'}
+                      </button>
+                    </div>
                   </div>
                   <div className="flex gap-0.5">
                     {['M','T','W','T','F','S','S'].map((day, i) => {
@@ -189,9 +200,7 @@
               {showAdd ? '✕' : '＋'}
             </button>
             <div className="flex gap-4">
-              <button onMouseDown={downloadBackup} className="text-[#7d8ba8] hover:text-blue-500 transition-colors text-sm">
-                💾
-              </button>
+              <button onMouseDown={downloadBackup} className="text-[#7d8ba8] hover:text-blue-500 transition-colors text-sm">💾</button>
               <label className="cursor-pointer text-[#7d8ba8] hover:text-green-600 transition-colors text-sm">
                 📥 <input type="file" className="hidden" onChange={handleRestore} />
               </label>
