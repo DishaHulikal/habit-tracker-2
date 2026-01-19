@@ -41,7 +41,7 @@
       })();
 
       useEffect(() => {
-        const stored = localStorage.getItem('habitStore_FinalV4');
+        const stored = localStorage.getItem('habitStore_v5');
         if (stored) {
           const data = JSON.parse(stored);
           setCompletions(data.completions || {});
@@ -51,14 +51,12 @@
       }, []);
 
       useEffect(() => {
-        localStorage.setItem('habitStore_FinalV4', JSON.stringify({ completions, habits, manualAdjust }));
+        localStorage.setItem('habitStore_v5', JSON.stringify({ completions, habits, manualAdjust }));
       }, [completions, habits, manualAdjust]);
 
       const getStreak = (habitId) => {
         let count = 0;
         let d = new Date();
-        
-        // Is the streak active today or yesterday?
         let isTodayDone = completions[`${habitId}-${toDateKey(d)}`];
         let yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
@@ -66,14 +64,11 @@
 
         if (!isTodayDone && !isYesterdayDone) return 0;
 
-        // Start counting from the most recent completed day
         let checkDate = isTodayDone ? new Date() : yesterday;
         while (completions[`${habitId}-${toDateKey(checkDate)}`]) {
           count++;
           checkDate.setDate(checkDate.getDate() - 1);
         }
-
-        // Add manual bonus ONLY if streak is unbroken
         return count + (manualAdjust[habitId] || 0);
       };
 
@@ -101,7 +96,7 @@
 
       return (
         <div className="w-full p-2 antialiased select-none font-sans flex flex-col h-screen">
-          <div className="flex justify-center items-center mb-1.5 px-1">
+          <div className="flex justify-start items-center mb-1.5 px-1">
             <span className="text-base text-[#7d8ba8]">𝓗𝓪𝓫𝓲𝓽 𝓣𝓻𝓪𝓬𝓴𝓮𝓻 ⋆˚࿔</span>
           </div>
           
@@ -114,10 +109,10 @@
                     <span className="truncate text-[#4a4a4a] font-bold flex-1">✨ {habit.name}</span>
                     <div className="flex items-center gap-2">
                       <div onClick={() => {
-                        const val = prompt("Enter base days to add (e.g., 29):");
+                        const val = prompt("Enter base days (e.g., 29):");
                         if (val !== null) setManualAdjust({...manualAdjust, [habit.id]: parseInt(val) || 0});
                       }} className="font-bold text-orange-600 cursor-pointer">{getStreak(habit.id)}🔥</div>
-                      <button onClick={() => attemptDelete(habit.id)} className={`px-1 rounded font-bold transition-colors ${isConfirming ? 'bg-red-500 text-white' : 'text-[#b8ada3]'}`}>
+                      <button onClick={() => attemptDelete(habit.id)} className={`px-1 rounded font-bold ${isConfirming ? 'bg-red-500 text-white' : 'text-[#b8ada3]'}`}>
                         {isConfirming ? '!!' : '✕'}
                       </button>
                     </div>
@@ -128,7 +123,7 @@
                       const isChecked = completions[`${habit.id}-${dKey}`];
                       return (
                         <button key={i} onClick={() => toggle(habit.id, weekDates[i])} 
-                          className={`flex-1 py-1 rounded-sm text-[9px] font-bold border transition-all ${isChecked ? 'bg-[#5e7ce2] border-[#5e7ce2] text-white' : 'bg-white border-[#b8ada3] text-[#8b7d73]'}`}>
+                          className={`flex-1 py-1 rounded-sm text-[9px] font-bold border ${isChecked ? 'bg-[#5e7ce2] border-[#5e7ce2] text-white' : 'bg-white border-[#b8ada3] text-[#8b7d73]'}`}>
                           {day}
                         </button>
                       )
@@ -139,10 +134,12 @@
             })}
           </div>
 
-          <button onClick={() => {
-            const n = prompt("Habit name?");
-            if(n) setHabits([...habits, {id: Date.now(), name: n}]);
-          }} className="mt-2 text-[#7d8ba8] text-xs font-bold self-center hover:text-white transition-colors">＋ Add Habit</button>
+          <div className="mt-2 flex justify-start">
+            <button onClick={() => {
+              const n = prompt("Habit name?");
+              if(n) setHabits([...habits, {id: Date.now(), name: n}]);
+            }} className="text-[#7d8ba8] text-lg font-bold hover:text-white transition-colors">＋</button>
+          </div>
         </div>
       );
     }
