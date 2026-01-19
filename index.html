@@ -43,7 +43,7 @@
       })();
 
       useEffect(() => {
-        const stored = localStorage.getItem('habitStore_v6');
+        const stored = localStorage.getItem('habitStore_FinalV7');
         if (stored) {
           const data = JSON.parse(stored);
           setCompletions(data.completions || {});
@@ -53,7 +53,7 @@
       }, []);
 
       useEffect(() => {
-        localStorage.setItem('habitStore_v6', JSON.stringify({ completions, habits, manualAdjust }));
+        localStorage.setItem('habitStore_FinalV7', JSON.stringify({ completions, habits, manualAdjust }));
       }, [completions, habits, manualAdjust]);
 
       const getStreak = (habitId) => {
@@ -63,9 +63,7 @@
         let yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
         let isYesterdayDone = completions[`${habitId}-${toDateKey(yesterday)}`];
-
         if (!isTodayDone && !isYesterdayDone) return 0;
-
         let checkDate = isTodayDone ? new Date() : yesterday;
         while (completions[`${habitId}-${toDateKey(checkDate)}`]) {
           count++;
@@ -96,17 +94,13 @@
             {habits.map(habit => {
               const isConfirming = deleteConfirm === habit.id;
               const isEditingStreak = editingStreakId === habit.id;
-
               return (
                 <div key={habit.id} className="bg-[#e8e2dd]/90 p-1.5 rounded-md shadow-sm">
                   <div className="flex justify-between items-center mb-1 text-[10px]">
                     <span className="truncate text-[#4a4a4a] font-bold flex-1">✨ {habit.name}</span>
                     <div className="flex items-center gap-2">
                       {isEditingStreak ? (
-                        <input 
-                          autoFocus
-                          className="w-8 bg-white border border-[#b8ada3] rounded text-center outline-none"
-                          defaultValue={manualAdjust[habit.id] || 0}
+                        <input autoFocus className="w-8 bg-white border border-[#b8ada3] rounded text-center outline-none"
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               setManualAdjust({...manualAdjust, [habit.id]: parseInt(e.target.value) || 0});
@@ -116,14 +110,13 @@
                           onBlur={() => setEditingStreakId(null)}
                         />
                       ) : (
-                        <div onClick={() => setEditingStreakId(habit.id)} className="font-bold text-orange-600 cursor-pointer hover:scale-110 transition-transform">
+                        <div onClick={() => setEditingStreakId(habit.id)} className="font-bold text-orange-600 cursor-pointer">
                           {getStreak(habit.id)}🔥
                         </div>
                       )}
                       <button onClick={() => {
                         if (deleteConfirm === habit.id) {
                           setHabits(habits.filter(h => h.id !== habit.id));
-                          setDeleteConfirm(null);
                         } else {
                           setDeleteConfirm(habit.id);
                           setTimeout(() => setDeleteConfirm(null), 2500);
@@ -139,7 +132,7 @@
                       const isChecked = completions[`${habit.id}-${dKey}`];
                       return (
                         <button key={i} onClick={() => toggle(habit.id, weekDates[i])} 
-                          className={`flex-1 py-1 rounded-sm text-[9px] font-bold border transition-all ${isChecked ? 'bg-[#5e7ce2] border-[#5e7ce2] text-white' : 'bg-white border-[#b8ada3] text-[#8b7d73]'}`}>
+                          className={`flex-1 py-1 rounded-sm text-[9px] font-bold border ${isChecked ? 'bg-[#5e7ce2] border-[#5e7ce2] text-white' : 'bg-white border-[#b8ada3] text-[#8b7d73]'}`}>
                           {day}
                         </button>
                       )
@@ -150,12 +143,9 @@
             })}
           </div>
 
-          <div className="mt-2 flex items-center gap-2">
+          <div className="mt-2 flex justify-start">
             {isAdding ? (
-              <input 
-                autoFocus
-                placeholder="Name..."
-                className="text-[10px] p-1 rounded border border-[#b8ada3] outline-none w-32 bg-white"
+              <input autoFocus className="text-[10px] p-1 rounded border border-[#b8ada3] outline-none w-32 bg-white"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && e.target.value) {
                     setHabits([...habits, {id: Date.now(), name: e.target.value}]);
@@ -165,7 +155,7 @@
                 onBlur={() => setIsAdding(false)}
               />
             ) : (
-              <button onClick={() => setIsAdding(true)} className="text-[#7d8ba8] text-lg font-bold hover:text-white transition-colors">＋</button>
+              <button onClick={() => setIsAdding(true)} className="text-[#7d8ba8] text-lg font-bold">＋</button>
             )}
           </div>
         </div>
