@@ -44,7 +44,7 @@
       })();
 
       useEffect(() => {
-        const stored = localStorage.getItem('habitStore_Final_v19');
+        const stored = localStorage.getItem('habitStore_Final_v22');
         if (stored) {
           const data = JSON.parse(stored);
           setCompletions(data.completions || {});
@@ -54,7 +54,7 @@
       }, []);
 
       useEffect(() => {
-        localStorage.setItem('habitStore_Final_v19', JSON.stringify({ completions, habits, manualAdjust }));
+        localStorage.setItem('habitStore_Final_v22', JSON.stringify({ completions, habits, manualAdjust }));
       }, [completions, habits, manualAdjust]);
 
       const getStreak = (habitId) => {
@@ -86,10 +86,7 @@
                         onKeyDown={(e) => e.key === 'Enter' && setEditingNameId(null)}
                       />
                     ) : (
-                      <span 
-                        onClick={() => setEditingNameId(habit.id)}
-                        className="truncate text-[#4a4a4a] font-bold cursor-pointer"
-                      >
+                      <span onClick={() => setEditingNameId(habit.id)} className="truncate text-[#4a4a4a] font-bold cursor-pointer">
                         {habit.name}
                       </span>
                     )}
@@ -101,7 +98,7 @@
                         autoFocus
                         type="text"
                         inputMode="numeric"
-                        className="w-7 bg-white border border-[#b8ada3] rounded text-center outline-none font-bold"
+                        className="w-7 bg-white border border-[#b8ada3] rounded text-center outline-none font-bold text-orange-600"
                         value={manualAdjust[habit.id] ?? ''}
                         onChange={(e) => {
                           const val = e.target.value.replace(/\D/g, '');
@@ -157,10 +154,10 @@
             {isAdding ? (
               <input 
                 autoFocus
-                className="text-[10px] p-1 rounded border border-[#b8ada3] outline-none w-32 bg-white"
+                className="text-[10px] p-1 rounded border border-[#b8ada3] outline-none w-40 bg-white"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && e.target.value) {
-                    setHabits([...habits, {id: Date.now(), name: `✨ ${e.target.value}`}]);
+                    setHabits([...habits, {id: Date.now(), name: e.target.value}]);
                     setIsAdding(false);
                   }
                 }}
