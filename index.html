@@ -9,20 +9,17 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 </head>
 <body style="background: #c9bdb4; margin: 0; padding: 0; overflow: hidden;">
   <div id="root"></div>
   <script type="text/babel">
-    const { useState, useEffect, useRef } = React;
+    const { useState, useEffect } = React;
 
     function HabitTracker() {
       const [habits, setHabits] = useState([]);
       const [completions, setCompletions] = useState({});
-      const [showAdd, setShowAdd] = useState(false);
-      const [editingId, setEditingId] = useState(null);
+      const [manualAdjust, setManualAdjust] = useState({}); 
       const [deleteConfirm, setDeleteConfirm] = useState(null);
-      const listRef = useRef(null);
 
       const toDateKey = (date) => {
         const y = date.getFullYear();
@@ -44,43 +41,40 @@
       })();
 
       useEffect(() => {
-        const stored = localStorage.getItem('habitData');
+        const stored = localStorage.getItem('habitStore_FinalV4');
         if (stored) {
           const data = JSON.parse(stored);
           setCompletions(data.completions || {});
-          if (data.habits) setHabits(data.habits);
+          setHabits(data.habits || []);
+          setManualAdjust(data.manualAdjust || {});
         }
       }, []);
 
       useEffect(() => {
-        localStorage.setItem('habitData', JSON.stringify({ completions, habits }));
-      }, [completions, habits]);
-
-      useEffect(() => {
-        if (listRef.current && habits.length > 0) {
-          Sortable.create(listRef.current, {
-            animation: 150,
-            onEnd: (evt) => {
-              const newHabits = [...habits];
-              const [movedItem] = newHabits.splice(evt.oldIndex, 1);
-              newHabits.splice(evt.newIndex, 0, movedItem);
-              setHabits(newHabits);
-            },
-          });
-        }
-      }, [habits]);
+        localStorage.setItem('habitStore_FinalV4', JSON.stringify({ completions, habits, manualAdjust }));
+      }, [completions, habits, manualAdjust]);
 
       const getStreak = (habitId) => {
         let count = 0;
         let d = new Date();
-        const todayKey = toDateKey(d);
-        if (!completions[`${habitId}-${todayKey}`]) d.setDate(d.getDate() - 1);
-        while (completions[`${habitId}-${toDateKey(d)}`]) {
+        
+        // Is the streak active today or yesterday?
+        let isTodayDone = completions[`${habitId}-${toDateKey(d)}`];
+        let yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        let isYesterdayDone = completions[`${habitId}-${toDateKey(yesterday)}`];
+
+        if (!isTodayDone && !isYesterdayDone) return 0;
+
+        // Start counting from the most recent completed day
+        let checkDate = isTodayDone ? new Date() : yesterday;
+        while (completions[`${habitId}-${toDateKey(checkDate)}`]) {
           count++;
-          d.setDate(d.getDate() - 1);
-          if (count > 365) break;
+          checkDate.setDate(checkDate.getDate() - 1);
         }
-        return count;
+
+        // Add manual bonus ONLY if streak is unbroken
+        return count + (manualAdjust[habitId] || 0);
       };
 
       const toggle = (id, date) => {
@@ -95,37 +89,13 @@
         setCompletions(newComps);
       };
 
-      const downloadBackup = () => {
-        const data = JSON.stringify({ completions, habits });
-        const blob = new Blob([data], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `habit_backup_${new Date().toISOString().split('T')[0]}.json`;
-        link.click();
-      };
-
-      const handleRestore = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          try {
-            const saved = JSON.parse(event.target.result);
-            setHabits(saved.habits || []);
-            setCompletions(saved.completions || {});
-          } catch (err) { console.error("Restore failed"); }
-        };
-        reader.readAsText(file);
-      };
-
       const attemptDelete = (id) => {
         if (deleteConfirm === id) {
           setHabits(habits.filter(h => h.id !== id));
           setDeleteConfirm(null);
         } else {
           setDeleteConfirm(id);
-          setTimeout(() => setDeleteConfirm(null), 3000);
+          setTimeout(() => setDeleteConfirm(null), 2500);
         }
       };
 
@@ -135,35 +105,19 @@
             <span className="text-base text-[#7d8ba8]">𝓗𝓪𝓫𝓲𝓽 𝓣𝓻𝓪𝓬𝓴𝓮𝓻 ⋆˚࿔</span>
           </div>
           
-          <div ref={listRef} className="space-y-1 overflow-y-auto flex-grow pr-1">
+          <div className="space-y-1 overflow-y-auto flex-grow pr-1">
             {habits.map(habit => {
-              const streak = getStreak(habit.id);
               const isConfirming = deleteConfirm === habit.id;
-
               return (
                 <div key={habit.id} className="bg-[#e8e2dd]/90 p-1.5 rounded-md shadow-sm">
                   <div className="flex justify-between items-center mb-1 text-[10px]">
-                    <div className="flex items-center gap-1 font-bold flex-1 truncate pr-2">
-                      {editingId === habit.id ? (
-                        <input className="flex-1 bg-white rounded px-1 outline-none font-bold text-[#4a4a4a]" 
-                          value={habit.name} 
-                          onChange={(e) => setHabits(habits.map(h => h.id === habit.id ? {...h, name: e.target.value} : h))} 
-                          onBlur={() => setEditingId(null)} 
-                          onKeyDown={(e) => e.key === 'Enter' && setEditingId(null)} 
-                          autoFocus />
-                      ) : (
-                        <span className="truncate cursor-pointer text-[#4a4a4a] flex-1" onClick={() => setEditingId(habit.id)}>
-                          {habit.emoji || '✨'} {habit.name}
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <div className="font-bold text-orange-600">{streak}🔥</div>
-                      <button 
-                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); attemptDelete(habit.id); }} 
-                        className={`text-[10px] px-1.5 rounded font-bold transition-all ${isConfirming ? 'bg-red-500 text-white' : 'text-[#b8ada3] hover:text-red-500'}`}
-                      >
+                    <span className="truncate text-[#4a4a4a] font-bold flex-1">✨ {habit.name}</span>
+                    <div className="flex items-center gap-2">
+                      <div onClick={() => {
+                        const val = prompt("Enter base days to add (e.g., 29):");
+                        if (val !== null) setManualAdjust({...manualAdjust, [habit.id]: parseInt(val) || 0});
+                      }} className="font-bold text-orange-600 cursor-pointer">{getStreak(habit.id)}🔥</div>
+                      <button onClick={() => attemptDelete(habit.id)} className={`px-1 rounded font-bold transition-colors ${isConfirming ? 'bg-red-500 text-white' : 'text-[#b8ada3]'}`}>
                         {isConfirming ? '!!' : '✕'}
                       </button>
                     </div>
@@ -185,27 +139,10 @@
             })}
           </div>
 
-          {showAdd && (
-            <input autoFocus type="text" placeholder="Add habit..." className="mt-1.5 w-full text-[10px] p-1 rounded border border-[#b8ada3] bg-white outline-none shadow-inner" onKeyDown={(e) => {
-              if(e.key === 'Enter' && e.target.value) {
-                setHabits([...habits, {id: Date.now(), name: e.target.value, emoji: '✨'}]);
-                e.target.value = '';
-                setShowAdd(false);
-              }
-            }} />
-          )}
-
-          <div className="mt-auto pt-2 pb-2 flex justify-between items-center px-4 border-t border-[#b8ada3]/30 bg-[#c9bdb4]">
-            <button onMouseDown={() => setShowAdd(!showAdd)} className="text-[#7d8ba8] hover:text-white transition-colors text-sm font-bold">
-              {showAdd ? '✕' : '＋'}
-            </button>
-            <div className="flex gap-4">
-              <button onMouseDown={downloadBackup} className="text-[#7d8ba8] hover:text-blue-500 transition-colors text-sm">💾</button>
-              <label className="cursor-pointer text-[#7d8ba8] hover:text-green-600 transition-colors text-sm">
-                📥 <input type="file" className="hidden" onChange={handleRestore} />
-              </label>
-            </div>
-          </div>
+          <button onClick={() => {
+            const n = prompt("Habit name?");
+            if(n) setHabits([...habits, {id: Date.now(), name: n}]);
+          }} className="mt-2 text-[#7d8ba8] text-xs font-bold self-center hover:text-white transition-colors">＋ Add Habit</button>
         </div>
       );
     }
