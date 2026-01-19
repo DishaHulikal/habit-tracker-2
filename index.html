@@ -20,6 +20,8 @@
       const [completions, setCompletions] = useState({});
       const [manualAdjust, setManualAdjust] = useState({}); 
       const [deleteConfirm, setDeleteConfirm] = useState(null);
+      const [isAdding, setIsAdding] = useState(false);
+      const [editingStreakId, setEditingStreakId] = useState(null);
 
       const toDateKey = (date) => {
         const y = date.getFullYear();
@@ -41,7 +43,7 @@
       })();
 
       useEffect(() => {
-        const stored = localStorage.getItem('habitStore_v5');
+        const stored = localStorage.getItem('habitStore_v6');
         if (stored) {
           const data = JSON.parse(stored);
           setCompletions(data.completions || {});
@@ -51,7 +53,7 @@
       }, []);
 
       useEffect(() => {
-        localStorage.setItem('habitStore_v5', JSON.stringify({ completions, habits, manualAdjust }));
+        localStorage.setItem('habitStore_v6', JSON.stringify({ completions, habits, manualAdjust }));
       }, [completions, habits, manualAdjust]);
 
       const getStreak = (habitId) => {
@@ -84,16 +86,6 @@
         setCompletions(newComps);
       };
 
-      const attemptDelete = (id) => {
-        if (deleteConfirm === id) {
-          setHabits(habits.filter(h => h.id !== id));
-          setDeleteConfirm(null);
-        } else {
-          setDeleteConfirm(id);
-          setTimeout(() => setDeleteConfirm(null), 2500);
-        }
-      };
-
       return (
         <div className="w-full p-2 antialiased select-none font-sans flex flex-col h-screen">
           <div className="flex justify-start items-center mb-1.5 px-1">
@@ -103,16 +95,40 @@
           <div className="space-y-1 overflow-y-auto flex-grow pr-1">
             {habits.map(habit => {
               const isConfirming = deleteConfirm === habit.id;
+              const isEditingStreak = editingStreakId === habit.id;
+
               return (
                 <div key={habit.id} className="bg-[#e8e2dd]/90 p-1.5 rounded-md shadow-sm">
                   <div className="flex justify-between items-center mb-1 text-[10px]">
                     <span className="truncate text-[#4a4a4a] font-bold flex-1">✨ {habit.name}</span>
                     <div className="flex items-center gap-2">
-                      <div onClick={() => {
-                        const val = prompt("Enter base days (e.g., 29):");
-                        if (val !== null) setManualAdjust({...manualAdjust, [habit.id]: parseInt(val) || 0});
-                      }} className="font-bold text-orange-600 cursor-pointer">{getStreak(habit.id)}🔥</div>
-                      <button onClick={() => attemptDelete(habit.id)} className={`px-1 rounded font-bold ${isConfirming ? 'bg-red-500 text-white' : 'text-[#b8ada3]'}`}>
+                      {isEditingStreak ? (
+                        <input 
+                          autoFocus
+                          className="w-8 bg-white border border-[#b8ada3] rounded text-center outline-none"
+                          defaultValue={manualAdjust[habit.id] || 0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              setManualAdjust({...manualAdjust, [habit.id]: parseInt(e.target.value) || 0});
+                              setEditingStreakId(null);
+                            }
+                          }}
+                          onBlur={() => setEditingStreakId(null)}
+                        />
+                      ) : (
+                        <div onClick={() => setEditingStreakId(habit.id)} className="font-bold text-orange-600 cursor-pointer hover:scale-110 transition-transform">
+                          {getStreak(habit.id)}🔥
+                        </div>
+                      )}
+                      <button onClick={() => {
+                        if (deleteConfirm === habit.id) {
+                          setHabits(habits.filter(h => h.id !== habit.id));
+                          setDeleteConfirm(null);
+                        } else {
+                          setDeleteConfirm(habit.id);
+                          setTimeout(() => setDeleteConfirm(null), 2500);
+                        }
+                      }} className={`px-1 rounded font-bold ${isConfirming ? 'bg-red-500 text-white' : 'text-[#b8ada3]'}`}>
                         {isConfirming ? '!!' : '✕'}
                       </button>
                     </div>
@@ -123,7 +139,7 @@
                       const isChecked = completions[`${habit.id}-${dKey}`];
                       return (
                         <button key={i} onClick={() => toggle(habit.id, weekDates[i])} 
-                          className={`flex-1 py-1 rounded-sm text-[9px] font-bold border ${isChecked ? 'bg-[#5e7ce2] border-[#5e7ce2] text-white' : 'bg-white border-[#b8ada3] text-[#8b7d73]'}`}>
+                          className={`flex-1 py-1 rounded-sm text-[9px] font-bold border transition-all ${isChecked ? 'bg-[#5e7ce2] border-[#5e7ce2] text-white' : 'bg-white border-[#b8ada3] text-[#8b7d73]'}`}>
                           {day}
                         </button>
                       )
@@ -134,11 +150,23 @@
             })}
           </div>
 
-          <div className="mt-2 flex justify-start">
-            <button onClick={() => {
-              const n = prompt("Habit name?");
-              if(n) setHabits([...habits, {id: Date.now(), name: n}]);
-            }} className="text-[#7d8ba8] text-lg font-bold hover:text-white transition-colors">＋</button>
+          <div className="mt-2 flex items-center gap-2">
+            {isAdding ? (
+              <input 
+                autoFocus
+                placeholder="Name..."
+                className="text-[10px] p-1 rounded border border-[#b8ada3] outline-none w-32 bg-white"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.target.value) {
+                    setHabits([...habits, {id: Date.now(), name: e.target.value}]);
+                    setIsAdding(false);
+                  }
+                }}
+                onBlur={() => setIsAdding(false)}
+              />
+            ) : (
+              <button onClick={() => setIsAdding(true)} className="text-[#7d8ba8] text-lg font-bold hover:text-white transition-colors">＋</button>
+            )}
           </div>
         </div>
       );
