@@ -6,18 +6,19 @@
   <title>Habit Tracker</title>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body style="background: #c9bdb4; margin: 0; padding: 0; overflow: hidden;">
   <div id="root"></div>
-  <script>
-    const { useState, useEffect, createElement: h } = React;
+  <script type="text/babel">
+    const { useState, useEffect } = React;
 
     function HabitTracker() {
       const [habits, setHabits] = useState([]);
       const [completions, setCompletions] = useState({});
-      const [manualAdjust, setManualAdjust] = useState({});
+      const [manualAdjust, setManualAdjust] = useState({}); 
       const [deleteConfirm, setDeleteConfirm] = useState(null);
       const [isAdding, setIsAdding] = useState(false);
       const [editingStreakId, setEditingStreakId] = useState(null);
@@ -32,10 +33,10 @@
 
       const weekDates = (() => {
         const now = new Date();
-        const day = now.getDay();
+        const day = now.getDay(); 
         const diff = now.getDate() - day + (day === 0 ? -6 : 1);
         const monday = new Date(now.getFullYear(), now.getMonth(), diff);
-        return Array.from({ length: 7 }, (_, i) => {
+        return Array.from({length: 7}, (_, i) => {
           const d = new Date(monday);
           d.setDate(monday.getDate() + i);
           return d;
@@ -43,7 +44,7 @@
       })();
 
       useEffect(() => {
-        const stored = localStorage.getItem('habitStore_Final_v23');
+        const stored = localStorage.getItem('habitStore_Final_v22');
         if (stored) {
           const data = JSON.parse(stored);
           setCompletions(data.completions || {});
@@ -53,107 +54,124 @@
       }, []);
 
       useEffect(() => {
-        localStorage.setItem('habitStore_Final_v23', JSON.stringify({ completions, habits, manualAdjust }));
+        localStorage.setItem('habitStore_Final_v22', JSON.stringify({ completions, habits, manualAdjust }));
       }, [completions, habits, manualAdjust]);
 
       const getStreak = (habitId) => {
         const base = manualAdjust[habitId] || 0;
-        const checkCount = Object.keys(completions).filter(key => key.startsWith(`${habitId}-`)).length;
+        const checkCount = Object.keys(completions).filter(key => 
+          key.startsWith(`${habitId}-`)
+        ).length;
         return base + checkCount;
       };
 
-      return h('div', { className: "w-full p-2 antialiased select-none font-sans flex flex-col h-screen" },
-        h('div', { className: "flex justify-start items-center mb-1.5 px-1" },
-          h('span', { className: "text-base text-[#7d8ba8]" }, "𝓗𝓪𝓫𝓲𝓽 𝓣𝓻𝓪𝓬𝓴𝓮𝓻 ⋆˚࿔")
-        ),
-        h('div', { className: "space-y-1 overflow-y-auto flex-grow pr-1" },
-          habits.map(habit => h('div', { key: habit.id, className: "bg-[#e8e2dd]/90 p-1.5 rounded-md shadow-sm" },
-            h('div', { className: "flex justify-between items-center mb-1 text-[10px]" },
-              h('div', { className: "flex-1 truncate pr-2" },
-                editingNameId === habit.id ? h('input', {
-                  autoFocus: true,
-                  className: "w-full bg-white border border-[#b8ada3] rounded px-1 outline-none font-bold text-[#4a4a4a]",
-                  value: habit.name,
-                  onChange: (e) => setHabits(habits.map(h => h.id === habit.id ? { ...h, name: e.target.value } : h)),
-                  onBlur: () => setEditingNameId(null),
-                  onKeyDown: (e) => e.key === 'Enter' && setEditingNameId(null)
-                }) : h('span', {
-                  onClick: () => setEditingNameId(habit.id),
-                  className: "truncate text-[#4a4a4a] font-bold cursor-pointer"
-                }, habit.name)
-              ),
-              h('div', { className: "flex items-center gap-1" },
-                editingStreakId === habit.id ? h('input', {
-                  autoFocus: true,
-                  className: "w-7 bg-white border border-[#b8ada3] rounded text-center outline-none font-bold text-orange-600",
-                  value: manualAdjust[habit.id] ?? '',
-                  onChange: (e) => {
-                    const val = e.target.value.replace(/\D/g, '');
-                    setManualAdjust({ ...manualAdjust, [habit.id]: val === '' ? 0 : parseInt(val) });
-                  },
-                  onBlur: () => setEditingStreakId(null),
-                  onKeyDown: (e) => e.key === 'Enter' && setEditingStreakId(null)
-                }) : h('div', {
-                  onClick: () => setEditingStreakId(habit.id),
-                  className: "font-bold text-orange-600 cursor-pointer"
-                }, `${getStreak(habit.id)}🔥`),
-                h('button', {
-                  onClick: () => {
-                    if (deleteConfirm === habit.id) {
-                      setHabits(habits.filter(h => h.id !== habit.id));
-                    } else {
-                      setDeleteConfirm(habit.id);
-                      setTimeout(() => setDeleteConfirm(null), 2500);
-                    }
-                  },
-                  className: `px-1 rounded font-bold ${deleteConfirm === habit.id ? 'bg-red-500 text-white' : 'text-[#b8ada3]'}`
-                }, deleteConfirm === habit.id ? '!!' : '✕')
-              )
-            ),
-            h('div', { className: "flex gap-0.5" },
-              ['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, i) => {
-                const dKey = toDateKey(weekDates[i]);
-                const isChecked = completions[`${habit.id}-${dKey}`];
-                return h('button', {
-                  key: i,
-                  onClick: () => {
-                    const key = `${habit.id}-${dKey}`;
-                    const newComps = { ...completions };
-                    if (newComps[key]) {
-                      delete newComps[key];
-                    } else {
-                      newComps[key] = true;
-                      confetti({ particleCount: 30, spread: 40, origin: { y: 0.8 } });
-                    }
-                    setCompletions(newComps);
-                  },
-                  className: `flex-1 py-1 rounded-sm text-[9px] font-bold border ${isChecked ? 'bg-[#5e7ce2] border-[#5e7ce2] text-white' : 'bg-white border-[#b8ada3] text-[#8b7d73]'}`
-                }, day);
-              })
-            )
-          ))
-        ),
-        h('div', { className: "mt-2 flex justify-start" },
-          isAdding ? h('input', {
-            autoFocus: true,
-            className: "text-[10px] p-1 rounded border border-[#b8ada3] outline-none w-40 bg-white",
-            onKeyDown: (e) => {
-              if (e.key === 'Enter' && e.target.value) {
-                setHabits([...habits, { id: Date.now(), name: e.target.value }]);
-                setIsAdding(false);
-              }
-            },
-            onBlur: () => setIsAdding(false)
-          }) : h('button', {
-            onClick: () => setIsAdding(true),
-            className: "text-[#7d8ba8] text-lg font-bold"
-          }, "＋")
-        )
+      return (
+        <div className="w-full p-2 antialiased select-none font-sans flex flex-col h-screen">
+          <div className="flex justify-start items-center mb-1.5 px-1">
+            <span className="text-base text-[#7d8ba8]">𝓗𝓪𝓫𝓲𝓽 𝓣𝓻𝓪𝓬𝓴𝓮𝓻 ⋆˚࿔</span>
+          </div>
+          
+          <div className="space-y-1 overflow-y-auto flex-grow pr-1">
+            {habits.map(habit => (
+              <div key={habit.id} className="bg-[#e8e2dd]/90 p-1.5 rounded-md shadow-sm">
+                <div className="flex justify-between items-center mb-1 text-[10px]">
+                  <div className="flex-1 truncate pr-2">
+                    {editingNameId === habit.id ? (
+                      <input 
+                        autoFocus
+                        className="w-full bg-white border border-[#b8ada3] rounded px-1 outline-none font-bold text-[#4a4a4a]"
+                        value={habit.name}
+                        onChange={(e) => setHabits(habits.map(h => h.id === habit.id ? {...h, name: e.target.value} : h))}
+                        onBlur={() => setEditingNameId(null)}
+                        onKeyDown={(e) => e.key === 'Enter' && setEditingNameId(null)}
+                      />
+                    ) : (
+                      <span onClick={() => setEditingNameId(habit.id)} className="truncate text-[#4a4a4a] font-bold cursor-pointer">
+                        {habit.name}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    {editingStreakId === habit.id ? (
+                      <input 
+                        autoFocus
+                        type="text"
+                        inputMode="numeric"
+                        className="w-7 bg-white border border-[#b8ada3] rounded text-center outline-none font-bold text-orange-600"
+                        value={manualAdjust[habit.id] ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setManualAdjust({...manualAdjust, [habit.id]: val === '' ? 0 : parseInt(val)});
+                        }}
+                        onBlur={() => setEditingStreakId(null)}
+                        onKeyDown={(e) => e.key === 'Enter' && setEditingStreakId(null)}
+                      />
+                    ) : (
+                      <div onClick={() => setEditingStreakId(habit.id)} className="font-bold text-orange-600 cursor-pointer">
+                        {getStreak(habit.id)}🔥
+                      </div>
+                    )}
+                    <button onClick={() => {
+                      if (deleteConfirm === habit.id) {
+                        setHabits(habits.filter(h => h.id !== habit.id));
+                      } else {
+                        setDeleteConfirm(habit.id);
+                        setTimeout(() => setDeleteConfirm(null), 2500);
+                      }
+                    }} className={`px-1 rounded font-bold ${deleteConfirm === habit.id ? 'bg-red-500 text-white' : 'text-[#b8ada3]'}`}>
+                      {deleteConfirm === habit.id ? '!!' : '✕'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex gap-0.5">
+                  {['M','T','W','T','F','S','S'].map((day, i) => {
+                    const dKey = toDateKey(weekDates[i]);
+                    const isChecked = completions[`${habit.id}-${dKey}`];
+                    return (
+                      <button key={i} onClick={() => {
+                        const key = `${habit.id}-${dKey}`;
+                        const newComps = { ...completions };
+                        if (newComps[key]) { 
+                          delete newComps[key]; 
+                        } else { 
+                          newComps[key] = true; 
+                          confetti({ particleCount: 30, spread: 40, origin: { y: 0.8 } });
+                        }
+                        setCompletions(newComps);
+                      }} className={`flex-1 py-1 rounded-sm text-[9px] font-bold border ${isChecked ? 'bg-[#5e7ce2] border-[#5e7ce2] text-white' : 'bg-white border-[#b8ada3] text-[#8b7d73]'}`}>
+                        {day}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-2 flex justify-start">
+            {isAdding ? (
+              <input 
+                autoFocus
+                className="text-[10px] p-1 rounded border border-[#b8ada3] outline-none w-40 bg-white"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && e.target.value) {
+                    setHabits([...habits, {id: Date.now(), name: e.target.value}]);
+                    setIsAdding(false);
+                  }
+                }}
+                onBlur={() => setIsAdding(false)}
+              />
+            ) : (
+              <button onClick={() => setIsAdding(true)} className="text-[#7d8ba8] text-lg font-bold">＋</button>
+            )}
+          </div>
+        </div>
       );
     }
-
     const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(h(HabitTracker));
+    root.render(<HabitTracker />);
   </script>
 </body>
 </html>
